@@ -105,11 +105,18 @@ else
 fi
 
 # Создание конфигурационного файла в /tmp
+# Определяем backend на основе audio_device
+if [ "${AUDIO_DEVICE}" = "pulse" ]; then
+    OUTPUT_BACKEND="pa"
+else
+    OUTPUT_BACKEND="alsa"
+fi
+
 cat > /tmp/shairport-sync.conf << EOF
 general = {
     name = "${AIRPLAY_NAME}";
     interpolation = "soxr";
-    output_backend = "alsa";
+    output_backend = "${OUTPUT_BACKEND}";
     port = 5000;
     udp_port_base = 6001;
     udp_port_range = 10;
@@ -123,15 +130,27 @@ general = {
 diagnostics = {
     log_verbosity = 1;
 };
+EOF
 
+# Добавляем конфигурацию в зависимости от backend
+if [ "${OUTPUT_BACKEND}" = "pa" ]; then
+    cat >> /tmp/shairport-sync.conf << EOF
+pa = {
+    application_name = "Shairport Sync";
+};
+EOF
+else
+    cat >> /tmp/shairport-sync.conf << EOF
 alsa = {
     output_device = "${AUDIO_DEVICE}";
     mixer_control_name = "PCM";
     mixer_type = "software";
     use_mmap_if_available = "no";
 };
+EOF
+fi
 
-metadata = {
+cat >> /tmp/shairport-sync.conf << EOF
     enabled = "yes";
     include_cover_art = "yes";
     pipe_name = "/tmp/shairport-sync-metadata";
