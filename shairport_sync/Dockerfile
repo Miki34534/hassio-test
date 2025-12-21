@@ -26,7 +26,8 @@ RUN apk add --no-cache \
     popt-dev \
     pulseaudio-dev \
     soxr-dev \
-    xmltoman
+    xmltoman \
+    jq  # Добавлено для парсинга JSON (на всякий случай, bashio его использует)
 
 # Клонирование и сборка Shairport Sync с поддержкой MQTT
 WORKDIR /tmp
@@ -40,8 +41,8 @@ RUN git clone https://github.com/mikebrady/shairport-sync.git && \
         --with-soxr \
         --with-metadata \
         --with-mqtt-client \
-        --with-dbus-interface \
         --with-stdout \
+        --without-dbus-interface \   # Убрали D-Bus интерфейс — не нужен при использовании MQTT
         --sysconfdir=/etc && \
     make && \
     make install && \
@@ -56,9 +57,6 @@ RUN apk del --no-cache \
     git \
     libtool \
     xmltoman
-
-# Создание необходимых директорий
-RUN mkdir -p /var/run/dbus
 
 # Копирование файлов конфигурации и скриптов
 COPY rootfs /
