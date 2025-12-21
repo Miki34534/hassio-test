@@ -3,14 +3,11 @@
 bashio::log.info "Starting Shairport Sync with MQTT support..."
 
 # Создаём конфигурацию ALSA в /tmp (writable)
-# Отключаем поиск PulseAudio плагинов
 cat > /tmp/asound.conf << 'ALSA_EOF'
-# Не использовать PulseAudio плагины
 pcm_type.pulse {
     lib "/dev/null"
 }
 
-# Основное устройство по умолчанию
 pcm.!default {
     type plug
     slave.pcm "dmixer"
@@ -21,7 +18,6 @@ ctl.!default {
     card 0
 }
 
-# DMIX для совместного доступа
 pcm.dmixer {
     type dmix
     ipc_key 1024
@@ -39,7 +35,6 @@ pcm.dmixer {
     }
 }
 
-# Software volume control
 pcm.softvol {
     type softvol
     slave.pcm "dmixer"
@@ -52,7 +47,6 @@ pcm.softvol {
 }
 ALSA_EOF
 
-# Устанавливаем переменные окружения для ALSA
 export ALSA_CONFIG_PATH=/tmp/asound.conf
 export ALSA_PLUGIN_DIR=/usr/lib/alsa-lib
 
@@ -85,14 +79,12 @@ if bashio::config.true 'mqtt_enable_remote'; then
     MQTT_ENABLE_REMOTE="yes"
 fi
 
-# Avahi настройки
 AVAHI_INTERFACES=$(bashio::config 'avahi_interfaces')
 AVAHI_HOSTNAME=$(bashio::config 'avahi_hostname')
 AVAHI_DOMAINNAME=$(bashio::config 'avahi_domainname')
 
 bashio::log.info "AirPlay device name: ${AIRPLAY_NAME}"
 
-# Проверка доступных аудио устройств (если команда доступна)
 if command -v aplay >/dev/null 2>&1; then
     bashio::log.info "Available audio devices:"
     aplay -L 2>/dev/null | head -20 || bashio::log.warning "Could not list audio devices"
@@ -105,7 +97,6 @@ else
     bashio::log.warning "No sound cards found - audio may not work!"
 fi
 
-# Создание конфигурационного файла в /tmp
 # Определяем backend на основе audio_device
 if [ "${AUDIO_DEVICE}" = "pulse" ]; then
     OUTPUT_BACKEND="pa"
@@ -113,7 +104,8 @@ else
     OUTPUT_BACKEND="alsa"
 fi
 
-cat > /tmp/shairport-sync.conf << EOF
+# Создание ПОЛНОГО конфигурационного файла за один раз
+cat > /tmp/shairport-sync.conf << CONF_EOF
 general = {
     name = "${AIRPLAY_NAME}";
     interpolation = "soxr";
@@ -131,43 +123,57 @@ general = {
 diagnostics = {
     log_verbosity = 1;
 };
-EOF
 
-# Добавляем конфигурацию в зависимости от backend
+CONF_EOF
+
+# Добавляем конфигурацию аудио backend
 if [ "${OUTPUT_BACKEND}" = "pa" ]; then
-    cat >> /tmp/shairport-sync.conf << EOF
+    if [ -n "${PULSE_SINK}" ]; then
+        cat >> /tmp/shairport-sync.conf << CONF_EOF
 pa = {
     application_name = "Shairport Sync";
+    server = "/run/audio/pulse.sock";
+    sink = "${PULSE_SINK}";
 };
-EOF
+
+CONF_EOF
+    else
+        cat >> /tmp/shairport-sync.conf << CONF_EOF
+pa = {
+    application_name = "Shairport Sync";
+    server = "/run/audio/pulse.sock";
+};
+
+CONF_EOF
+    fi
 else
-    cat >> /tmp/shairport-sync.conf << EOF
+    cat >> /tmp/shairport-sync.conf << CONF_EOF
 alsa = {
     output_device = "${AUDIO_DEVICE}";
     mixer_control_name = "PCM";
     mixer_type = "software";
     use_mmap_if_available = "no";
 };
-EOF
+
+CONF_EOF
 fi
 
-cat >> /tmp/shairport-sync.conf << EOF
+# Добавляем metadata секцию
+cat >> /tmp/shairport-sync.conf << CONF_EOF
+metadata = {
     enabled = "yes";
     include_cover_art = "yes";
     pipe_name = "/tmp/shairport-sync-metadata";
 };
 
-sessioncontrol = {
-};
-EOF
+CONF_EOF
 
-# Настройка MQTT если включен
+# Добавляем MQTT если включен
 if bashio::config.true 'mqtt_enabled'; then
     bashio::log.info "MQTT is enabled"
     
-    # Если username/password не заданы, используем без аутентификации
     if bashio::config.has_value 'mqtt_username'; then
-        cat >> /tmp/shairport-sync.conf << EOF
+        cat >> /tmp/shairport-sync.conf << CONF_EOF
 mqtt = {
     enabled = "yes";
     hostname = "${MQTT_HOSTNAME}";
@@ -180,9 +186,10 @@ mqtt = {
     publish_cover = "${MQTT_PUBLISH_COVER}";
     enable_remote = "${MQTT_ENABLE_REMOTE}";
 };
-EOF
+
+CONF_EOF
     else
-        cat >> /tmp/shairport-sync.conf << EOF
+        cat >> /tmp/shairport-sync.conf << CONF_EOF
 mqtt = {
     enabled = "yes";
     hostname = "${MQTT_HOSTNAME}";
@@ -193,11 +200,18 @@ mqtt = {
     publish_cover = "${MQTT_PUBLISH_COVER}";
     enable_remote = "${MQTT_ENABLE_REMOTE}";
 };
-EOF
+
+CONF_EOF
     fi
 else
     bashio::log.info "MQTT is disabled"
 fi
+
+# Добавляем sessioncontrol секцию
+cat >> /tmp/shairport-sync.conf << CONF_EOF
+sessioncontrol = {
+};
+CONF_EOF
 
 # Создание metadata pipe
 bashio::log.info "Metadata pipe created at /tmp/shairport-sync-metadata"
@@ -207,21 +221,19 @@ mkfifo -m 666 /tmp/shairport-sync-metadata 2>/dev/null || true
 mkdir -p /var/run/dbus
 rm -f /var/run/dbus/pid
 
-# Запуск D-Bus
 dbus-daemon --system --fork
 
-# Avahi уже настроен через rootfs/etc/avahi/avahi-daemon.conf
-# Запускаем с использованием базового конфига
-
-# Экспортируем переменные для дочерних процессов
 export ALSA_CONFIG_PATH=/tmp/asound.conf
 
 bashio::log.info "Starting Avahi daemon..."
 avahi-daemon --daemonize --no-chroot
 
-# Ждем запуска Avahi
 sleep 2
 
 bashio::log.info "Starting Shairport Sync daemon..."
 bashio::log.info "Config file: /tmp/shairport-sync.conf"
 bashio::log.info "ALSA config: /tmp/asound.conf"
+
+# Debug - показываем сгенерированный конфиг
+bashio::log.info "Generated config:"
+cat /tmp/shairport-sync.conf
