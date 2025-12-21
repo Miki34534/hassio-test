@@ -57,6 +57,5 @@
   "environment": {
     "LOG_FORMAT": "{LEVEL}: {MESSAGE}"
   },
-  "services": ["mqtt:want"],
-  "image": "maidok/{arch}-addon-shairport-sync"
+  "services": ["mqtt:want"]
 }
