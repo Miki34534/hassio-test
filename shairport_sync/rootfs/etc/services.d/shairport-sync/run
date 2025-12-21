@@ -1,4 +1,12 @@
 #!/usr/bin/with-contenv bashio
 
+# Устанавливаем переменные окружения для ALSA
+export ALSA_CONFIG_PATH=/tmp/asound.conf
+export ALSA_PLUGIN_DIR=/usr/lib/alsa-lib
+
+# Настройка PulseAudio для подключения к Home Assistant Audio
+export PULSE_SERVER=/run/audio/pulse.sock
+export PULSE_COOKIE=/run/audio/pulse.cookie
+
 # Запуск Shairport Sync в foreground режиме
-exec shairport-sync -c /etc/shairport-sync.conf -v
+exec shairport-sync -c /tmp/shairport-sync.conf -v
