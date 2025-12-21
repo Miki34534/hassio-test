@@ -59,8 +59,7 @@ RUN apk del --no-cache \
 
 # Создание необходимых директорий
 RUN mkdir -p /var/run/dbus \
-    && mkdir -p /var/run/avahi-daemon \
-    && mkdir -p /etc/avahi
+    && mkdir -p /var/run/avahi-daemon
 
 # Копирование файлов конфигурации и скриптов
 COPY rootfs /
