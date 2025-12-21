@@ -8,14 +8,31 @@ bashio::log.info "Starting Shairport Sync with MQTT support..."
 # Получаем конфигурацию
 NAME=$(bashio::config 'airplay_name')
 MQTT_ENABLED=$(bashio::config 'mqtt_enabled')
-MQTT_HOSTNAME=$(bashio::config 'mqtt_hostname')
-MQTT_PORT=$(bashio::config 'mqtt_port')
-MQTT_TOPIC=$(bashio::config 'mqtt_topic')
+MQTT_HOSTNAME=$(bashio::config 'mqtt_hostname' 'core-mosquitto')
+MQTT_PORT=$(bashio::config 'mqtt_port' '1883')
+MQTT_TOPIC=$(bashio::config 'mqtt_topic' 'shairport')
 MQTT_PUBLISH_PARSED=$(bashio::config 'mqtt_publish_parsed')
 MQTT_PUBLISH_COVER=$(bashio::config 'mqtt_publish_cover')
 MQTT_ENABLE_REMOTE=$(bashio::config 'mqtt_enable_remote')
 
 bashio::log.info "AirPlay device name: ${NAME}"
+
+# Создаём metadata pipe (FIFO) — это главное исправление!
+rm -f /tmp/shairport-sync-metadata
+mkfifo /tmp/shairport-sync-metadata
+chmod 666 /tmp/shairport-sync-metadata
+bashio::log.info "Metadata pipe created at /tmp/shairport-sync-metadata"
+
+# Проверка доступности MQTT брокера (теперь здесь, где bashio точно работает)
+if bashio::var.true "${MQTT_ENABLED}"; then
+    bashio::log.info "MQTT enabled. Checking broker at ${MQTT_HOSTNAME}:${MQTT_PORT}..."
+    if timeout 5 nc -z "${MQTT_HOSTNAME}" "${MQTT_PORT}" 2>/dev/null; then
+        bashio::log.info "MQTT broker is available"
+    else
+        bashio::log.warning "Cannot connect to MQTT broker at ${MQTT_HOSTNAME}:${MQTT_PORT}"
+        bashio::log.warning "Make sure Mosquitto broker addon is installed and running"
+    fi
+fi
 
 # Создаем базовый конфигурационный файл
 cat > /etc/shairport-sync.conf << EOF
@@ -59,8 +76,8 @@ mqtt = {
     port = ${MQTT_PORT};
     topic = "${MQTT_TOPIC}";
     publish_parsed = "${PARSED}";
-    publish_cover = "${COVER}";
-    enable_remote = "${REMOTE}";
+    publish_cover_art = "${COVER}";
+    enable_remote_control = "${REMOTE}";
 EOF
 
     # Добавляем аутентификацию MQTT если указана
@@ -83,15 +100,5 @@ fi
 
 bashio::log.info "Starting Shairport Sync daemon..."
 
-# Создаем необходимые директории
-mkdir -p /var/run/dbus
-mkdir -p /tmp/shairport-sync-metadata
-
-# Запускаем D-Bus
-bashio::log.info "Starting D-Bus..."
-dbus-daemon --system --nofork --nopidfile &
-sleep 2
-
 # Запускаем Shairport Sync
-bashio::log.info "Starting Shairport Sync..."
 exec shairport-sync -c /etc/shairport-sync.conf -v
