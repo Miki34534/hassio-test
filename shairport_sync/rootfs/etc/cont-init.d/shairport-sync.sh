@@ -3,11 +3,17 @@
 bashio::log.info "Starting Shairport Sync with MQTT support..."
 
 # Создаём конфигурацию ALSA в /tmp (writable)
+# Отключаем поиск PulseAudio плагинов
 cat > /tmp/asound.conf << 'ALSA_EOF'
+# Не использовать PulseAudio плагины
+pcm_type.pulse {
+    lib "/dev/null"
+}
+
+# Основное устройство по умолчанию
 pcm.!default {
-    type hw
-    card 0
-    device 0
+    type plug
+    slave.pcm "dmixer"
 }
 
 ctl.!default {
@@ -15,6 +21,7 @@ ctl.!default {
     card 0
 }
 
+# DMIX для совместного доступа
 pcm.dmixer {
     type dmix
     ipc_key 1024
@@ -22,8 +29,9 @@ pcm.dmixer {
         pcm "hw:0,0"
         period_time 0
         period_size 1024
-        buffer_size 4096
+        buffer_size 8192
         rate 44100
+        format S16_LE
     }
     bindings {
         0 0
@@ -31,6 +39,7 @@ pcm.dmixer {
     }
 }
 
+# Software volume control
 pcm.softvol {
     type softvol
     slave.pcm "dmixer"
@@ -38,6 +47,8 @@ pcm.softvol {
         name "PCM"
         card 0
     }
+    min_dB -51.0
+    max_dB 0.0
 }
 ALSA_EOF
 
@@ -80,12 +91,18 @@ AVAHI_DOMAINNAME=$(bashio::config 'avahi_domainname')
 
 bashio::log.info "AirPlay device name: ${AIRPLAY_NAME}"
 
-# Проверка доступных аудио устройств
-bashio::log.info "Available audio devices:"
-aplay -L | head -20 || true
+# Проверка доступных аудио устройств (если команда доступна)
+if command -v aplay >/dev/null 2>&1; then
+    bashio::log.info "Available audio devices:"
+    aplay -L 2>/dev/null | head -20 || bashio::log.warning "Could not list audio devices"
+fi
 
 bashio::log.info "ALSA cards:"
-cat /proc/asound/cards || bashio::log.warning "No sound cards found"
+if [ -f /proc/asound/cards ]; then
+    cat /proc/asound/cards
+else
+    bashio::log.warning "No sound cards found - audio may not work!"
+fi
 
 # Создание конфигурационного файла в /tmp
 cat > /tmp/shairport-sync.conf << EOF
@@ -186,3 +203,5 @@ avahi-daemon --daemonize --no-chroot
 sleep 2
 
 bashio::log.info "Starting Shairport Sync daemon..."
+bashio::log.info "Config file: /tmp/shairport-sync.conf"
+bashio::log.info "ALSA config: /tmp/asound.conf"
