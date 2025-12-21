@@ -59,6 +59,7 @@ export ALSA_PLUGIN_DIR=/usr/lib/alsa-lib
 # Получение конфигурации из options
 AIRPLAY_NAME=$(bashio::config 'airplay_name')
 AUDIO_DEVICE=$(bashio::config 'audio_device')
+PULSE_SINK=$(bashio::config 'pulse_sink')
 LOG_LEVEL=$(bashio::config 'log_level')
 MQTT_ENABLED=$(bashio::config 'mqtt_enabled')
 MQTT_HOSTNAME=$(bashio::config 'mqtt_hostname')
