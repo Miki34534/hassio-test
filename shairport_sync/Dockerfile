@@ -67,6 +67,3 @@ COPY rootfs /
 RUN chmod a+x /etc/services.d/shairport-sync/run && \
     chmod a+x /etc/services.d/shairport-sync/finish && \
     chmod a+x /etc/cont-init.d/shairport-sync.sh
-
-# Запуск D-Bus
-CMD [ "/init" ]
