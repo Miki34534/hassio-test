@@ -27,13 +27,14 @@ RUN apk add --no-cache \
     pulseaudio-dev \
     soxr-dev \
     xmltoman \
-    jq  # Добавлено для парсинга JSON (на всякий случай, bashio его использует)
+    jq
 
-# Клонирование и сборка Shairport Sync с поддержкой MQTT
+# Клонирование и сборка Shairport Sync
 WORKDIR /tmp
 RUN git clone https://github.com/mikebrady/shairport-sync.git && \
     cd shairport-sync && \
     autoreconf -fi && \
+    # Сборка без D-Bus интерфейса (MQTT достаточно для интеграции)
     ./configure \
         --with-alsa \
         --with-avahi \
@@ -42,14 +43,14 @@ RUN git clone https://github.com/mikebrady/shairport-sync.git && \
         --with-metadata \
         --with-mqtt-client \
         --with-stdout \
-        --without-dbus-interface \   # Убрали D-Bus интерфейс — не нужен при использовании MQTT
+        --without-dbus-interface \
         --sysconfdir=/etc && \
     make && \
     make install && \
     cd .. && \
     rm -rf shairport-sync
 
-# Удаление зависимостей для сборки
+# Удаление build-зависимостей
 RUN apk del --no-cache \
     autoconf \
     automake \
@@ -61,7 +62,7 @@ RUN apk del --no-cache \
 # Копирование файлов конфигурации и скриптов
 COPY rootfs /
 
-# Установка прав на выполнение для скриптов
+# Установка прав на выполнение
 RUN chmod a+x /etc/services.d/shairport-sync/run && \
     chmod a+x /etc/services.d/shairport-sync/finish && \
     chmod a+x /etc/cont-init.d/shairport-sync.sh
