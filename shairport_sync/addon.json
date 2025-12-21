@@ -1,0 +1,51 @@
+{
+  "name": "Shairport Sync",
+  "version": "4.3.8",
+  "slug": "shairport_sync",
+  "description": "AirPlay audio streaming server",
+  "url": "https://github.com/Miki34534/hassio-test",
+  "startup": "services",
+  "boot": "auto",
+  "arch": [
+    "aarch64",
+    "amd64",
+    "armhf",
+    "armv7",
+    "i386"
+  ],
+  "auth": false,
+  "privileged": [
+    "SYS_ADMIN",
+    "SYS_PTRACE"
+  ],
+  "apparmor": "profile",
+  "devices": [
+    "/dev/snd"
+  ],
+  "options": {
+    "name": "Shairport Sync",
+    "password": "",
+    "port": 5000,
+    "mqtt": false,
+    "mqtt_host": "localhost",
+    "mqtt_port": 1883,
+    "mqtt_user": "",
+    "mqtt_password": ""
+  },
+  "schema": {
+    "name": "str",
+    "password": "str?",
+    "port": "port",
+    "mqtt": "bool",
+    "mqtt_host": "str",
+    "mqtt_port": "port",
+    "mqtt_user": "str?",
+    "mqtt_password": "str?"
+  },
+  "ports": {
+    "5000/tcp": 5000
+  },
+  "ports_description": {
+    "5000/tcp": "Shairport Sync Control Port"
+  }
+}
