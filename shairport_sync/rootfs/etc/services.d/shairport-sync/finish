@@ -1,9 +1,8 @@
-#!/usr/bin/execlineb -S0
+#!/bin/sh
 # ==============================================================================
 # Take down the S6 supervision tree when Shairport Sync fails
 # ==============================================================================
 
-if { s6-test ${1} -ne 0 }
-if { s6-test ${1} -ne 256 }
-
-s6-svscanctl -t /var/run/s6/services
+if [ "$1" -ne 0 ] && [ "$1" -ne 256 ]; then
+  echo "Shairport Sync exited with code $1"
+fi
