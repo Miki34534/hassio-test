@@ -1,10 +1,9 @@
-
 {
   "name": "Shairport Sync",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "slug": "shairport_sync",
-  "description": "Shairport Sync for Hass.io",
-  "url": "https://github.com/v3rm0n/addon-shairport-sync",
+  "description": "Shairport Sync for Hass.io with MQTT support",
+  "url": "https://github.com/Miki34534/hassio-test",
   "startup": "application",
   "arch": [
     "aarch64",
@@ -29,7 +28,14 @@
     "avahi_hostname": "",
     "avahi_domainname": "local",
     "airplay_name": "Hass.io",
-    "enable_ipv6": false
+    "enable_ipv6": false,
+    "mqtt_enabled": true,
+    "mqtt_hostname": "core-mosquitto",
+    "mqtt_port": 1883,
+    "mqtt_topic": "shairport",
+    "mqtt_publish_parsed": true,
+    "mqtt_publish_cover": true,
+    "mqtt_enable_remote": true
   },
   "schema": {
     "log_level": "match(^(trace|debug|info|notice|warning|error|fatal)$)",
@@ -37,10 +43,20 @@
     "avahi_hostname": "str",
     "avahi_domainname": "str",
     "airplay_name": "str",
-    "enable_ipv6": "bool"
+    "enable_ipv6": "bool",
+    "mqtt_enabled": "bool",
+    "mqtt_hostname": "str?",
+    "mqtt_port": "port?",
+    "mqtt_topic": "str?",
+    "mqtt_username": "str?",
+    "mqtt_password": "password?",
+    "mqtt_publish_parsed": "bool?",
+    "mqtt_publish_cover": "bool?",
+    "mqtt_enable_remote": "bool?"
   },
   "environment": {
     "LOG_FORMAT": "{LEVEL}: {MESSAGE}"
   },
+  "services": ["mqtt:want"],
   "image": "maidok/{arch}-addon-shairport-sync"
 }
