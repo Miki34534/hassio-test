@@ -2,8 +2,52 @@
 
 bashio::log.info "Starting Shairport Sync with MQTT support..."
 
+# Отключаем PulseAudio плагины для ALSA
+export ALSA_PLUGIN_DIR=/usr/lib/alsa-lib
+export ALSA_CONFIG_PATH=/etc/asound.conf
+
+# Настройка ALSA - отключаем PulseAudio
+cat > /etc/asound.conf << 'ALSA_EOF'
+pcm.!default {
+    type hw
+    card 0
+    device 0
+}
+
+ctl.!default {
+    type hw
+    card 0
+}
+
+pcm.dmixer {
+    type dmix
+    ipc_key 1024
+    slave {
+        pcm "hw:0,0"
+        period_time 0
+        period_size 1024
+        buffer_size 4096
+        rate 44100
+    }
+    bindings {
+        0 0
+        1 1
+    }
+}
+
+pcm.softvol {
+    type softvol
+    slave.pcm "dmixer"
+    control {
+        name "PCM"
+        card 0
+    }
+}
+ALSA_EOF
+
 # Получение конфигурации из options
 AIRPLAY_NAME=$(bashio::config 'airplay_name')
+AUDIO_DEVICE=$(bashio::config 'audio_device')
 LOG_LEVEL=$(bashio::config 'log_level')
 MQTT_ENABLED=$(bashio::config 'mqtt_enabled')
 MQTT_HOSTNAME=$(bashio::config 'mqtt_hostname')
@@ -36,6 +80,13 @@ AVAHI_DOMAINNAME=$(bashio::config 'avahi_domainname')
 
 bashio::log.info "AirPlay device name: ${AIRPLAY_NAME}"
 
+# Проверка доступных аудио устройств
+bashio::log.info "Available audio devices:"
+aplay -L | head -20 || true
+
+bashio::log.info "ALSA cards:"
+cat /proc/asound/cards || bashio::log.warning "No sound cards found"
+
 # Создание конфигурационного файла
 cat > /etc/shairport-sync.conf << EOF
 general = {
@@ -57,9 +108,10 @@ diagnostics = {
 };
 
 alsa = {
-    output_device = "default";
+    output_device = "${AUDIO_DEVICE}";
     mixer_control_name = "PCM";
     mixer_type = "software";
+    use_mmap_if_available = "no";
 };
 
 metadata = {
