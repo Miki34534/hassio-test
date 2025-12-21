@@ -2,12 +2,8 @@
 
 bashio::log.info "Starting Shairport Sync with MQTT support..."
 
-# Отключаем PulseAudio плагины для ALSA
-export ALSA_PLUGIN_DIR=/usr/lib/alsa-lib
-export ALSA_CONFIG_PATH=/etc/asound.conf
-
-# Настройка ALSA - отключаем PulseAudio
-cat > /etc/asound.conf << 'ALSA_EOF'
+# Создаём конфигурацию ALSA в /tmp (writable)
+cat > /tmp/asound.conf << 'ALSA_EOF'
 pcm.!default {
     type hw
     card 0
@@ -44,6 +40,10 @@ pcm.softvol {
     }
 }
 ALSA_EOF
+
+# Устанавливаем переменные окружения для ALSA
+export ALSA_CONFIG_PATH=/tmp/asound.conf
+export ALSA_PLUGIN_DIR=/usr/lib/alsa-lib
 
 # Получение конфигурации из options
 AIRPLAY_NAME=$(bashio::config 'airplay_name')
@@ -87,8 +87,8 @@ aplay -L | head -20 || true
 bashio::log.info "ALSA cards:"
 cat /proc/asound/cards || bashio::log.warning "No sound cards found"
 
-# Создание конфигурационного файла
-cat > /etc/shairport-sync.conf << EOF
+# Создание конфигурационного файла в /tmp
+cat > /tmp/shairport-sync.conf << EOF
 general = {
     name = "${AIRPLAY_NAME}";
     interpolation = "soxr";
@@ -130,7 +130,7 @@ if bashio::config.true 'mqtt_enabled'; then
     
     # Если username/password не заданы, используем без аутентификации
     if bashio::config.has_value 'mqtt_username'; then
-        cat >> /etc/shairport-sync.conf << EOF
+        cat >> /tmp/shairport-sync.conf << EOF
 mqtt = {
     enabled = "yes";
     hostname = "${MQTT_HOSTNAME}";
@@ -145,7 +145,7 @@ mqtt = {
 };
 EOF
     else
-        cat >> /etc/shairport-sync.conf << EOF
+        cat >> /tmp/shairport-sync.conf << EOF
 mqtt = {
     enabled = "yes";
     hostname = "${MQTT_HOSTNAME}";
@@ -173,41 +173,11 @@ rm -f /var/run/dbus/pid
 # Запуск D-Bus
 dbus-daemon --system --fork
 
-# Настройка avahi-daemon.conf
-cat > /etc/avahi/avahi-daemon.conf << EOF
-[server]
-use-ipv4=yes
-use-ipv6=no
-ratelimit-interval-usec=1000000
-ratelimit-burst=1000
+# Avahi уже настроен через rootfs/etc/avahi/avahi-daemon.conf
+# Запускаем с использованием базового конфига
 
-[wide-area]
-enable-wide-area=yes
-
-[publish]
-publish-hinfo=no
-publish-workstation=no
-
-[reflector]
-enable-reflector=no
-
-[rlimits]
-EOF
-
-# Добавление интерфейсов если указаны
-if [ -n "${AVAHI_INTERFACES}" ]; then
-    sed -i "/\[server\]/a allow-interfaces=${AVAHI_INTERFACES}" /etc/avahi/avahi-daemon.conf
-fi
-
-# Hostname
-if [ -n "${AVAHI_HOSTNAME}" ]; then
-    sed -i "/\[server\]/a host-name=${AVAHI_HOSTNAME}" /etc/avahi/avahi-daemon.conf
-fi
-
-# Domain
-if [ -n "${AVAHI_DOMAINNAME}" ]; then
-    sed -i "/\[server\]/a domain-name=${AVAHI_DOMAINNAME}" /etc/avahi/avahi-daemon.conf
-fi
+# Экспортируем переменные для дочерних процессов
+export ALSA_CONFIG_PATH=/tmp/asound.conf
 
 bashio::log.info "Starting Avahi daemon..."
 avahi-daemon --daemonize --no-chroot
