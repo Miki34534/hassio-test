@@ -1,7 +1,10 @@
-#!/usr/bin/execlineb -S0
+#!/usr/bin/execlineb -S1
 
-# Cleanup при остановке
-if { s6-test ${1} -ne 0 }
-if { s6-test ${1} -ne 256 }
+# Выход если код завершения 0 или 256 (нормальное завершение)
+foreground { redirfd -w 1 /dev/null echo "Shairport Sync exited with code ${1}" }
+importas -i EXIT_CODE 1
+ifelse { test ${EXIT_CODE} -eq 0 } { exit 0 }
+ifelse { test ${EXIT_CODE} -eq 256 } { exit 0 }
 
-s6-svscanctl -t /var/run/s6/services
+# Для других кодов - пытаемся перезапустить
+exit 125
