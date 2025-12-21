@@ -9,6 +9,7 @@ RUN apk add --no-cache \
     automake \
     avahi \
     avahi-dev \
+    avahi-tools \
     build-base \
     dbus \
     ffmpeg-dev \
@@ -26,15 +27,13 @@ RUN apk add --no-cache \
     popt-dev \
     pulseaudio-dev \
     soxr-dev \
-    xmltoman \
-    jq
+    xmltoman
 
 # Клонирование и сборка Shairport Sync
 WORKDIR /tmp
 RUN git clone https://github.com/mikebrady/shairport-sync.git && \
     cd shairport-sync && \
     autoreconf -fi && \
-    # Сборка без D-Bus интерфейса (MQTT достаточно для интеграции)
     ./configure \
         --with-alsa \
         --with-avahi \
@@ -43,7 +42,6 @@ RUN git clone https://github.com/mikebrady/shairport-sync.git && \
         --with-metadata \
         --with-mqtt-client \
         --with-stdout \
-        --without-dbus-interface \
         --sysconfdir=/etc && \
     make && \
     make install && \
@@ -59,6 +57,11 @@ RUN apk del --no-cache \
     libtool \
     xmltoman
 
+# Создание необходимых директорий
+RUN mkdir -p /var/run/dbus \
+    && mkdir -p /var/run/avahi-daemon \
+    && mkdir -p /etc/avahi
+
 # Копирование файлов конфигурации и скриптов
 COPY rootfs /
 
@@ -66,3 +69,13 @@ COPY rootfs /
 RUN chmod a+x /etc/services.d/shairport-sync/run && \
     chmod a+x /etc/services.d/shairport-sync/finish && \
     chmod a+x /etc/cont-init.d/shairport-sync.sh
+
+# Открываем порты
+EXPOSE 5000/tcp 6001-6011/udp
+
+# Labels
+LABEL \
+    io.hass.name="Shairport Sync" \
+    io.hass.description="AirPlay audio streaming server" \
+    io.hass.type="addon" \
+    io.hass.version="1.0.1"
