@@ -1,0 +1,107 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start Shairport Sync service
+# ==============================================================================
+
+declare name
+declare mqtt_enabled
+declare mqtt_hostname
+declare mqtt_port
+declare mqtt_topic
+declare mqtt_username
+declare mqtt_password
+declare mqtt_publish_parsed
+declare mqtt_publish_cover
+declare mqtt_enable_remote
+
+bashio::log.info "Starting Shairport Sync with MQTT support..."
+
+# Получаем конфигурацию
+name=$(bashio::config 'airplay_name')
+mqtt_enabled=$(bashio::config 'mqtt_enabled')
+mqtt_hostname=$(bashio::config 'mqtt_hostname' 'core-mosquitto')
+mqtt_port=$(bashio::config 'mqtt_port' '1883')
+mqtt_topic=$(bashio::config 'mqtt_topic' 'shairport')
+mqtt_publish_parsed=$(bashio::config 'mqtt_publish_parsed' 'true')
+mqtt_publish_cover=$(bashio::config 'mqtt_publish_cover' 'true')
+mqtt_enable_remote=$(bashio::config 'mqtt_enable_remote' 'true')
+
+bashio::log.info "AirPlay device name: ${name}"
+
+# Создаем базовый конфигурационный файл
+cat > /etc/shairport-sync.conf << EOF
+general = {
+    name = "${name}";
+    output_backend = "alsa";
+    port = 5000;
+    udp_port_base = 6001;
+    udp_port_range = 10;
+    drift_tolerance_in_seconds = 0.002;
+    resync_threshold_in_seconds = 0.050;
+};
+
+sessioncontrol = {
+    session_timeout = 20;
+};
+
+alsa = {
+    output_device = "default";
+    mixer_control_name = "PCM";
+};
+
+metadata = {
+    enabled = "yes";
+    include_cover_art = "yes";
+    pipe_name = "/tmp/shairport-sync-metadata";
+};
+EOF
+
+# Добавляем секцию MQTT если включено
+if bashio::var.true "${mqtt_enabled}"; then
+    bashio::log.info "Enabling MQTT integration..."
+    bashio::log.info "MQTT Broker: ${mqtt_hostname}:${mqtt_port}"
+    bashio::log.info "MQTT Topic: ${mqtt_topic}"
+    
+    cat >> /etc/shairport-sync.conf << EOF
+
+mqtt = {
+    enabled = "yes";
+    hostname = "${mqtt_hostname}";
+    port = ${mqtt_port};
+    topic = "${mqtt_topic}";
+    publish_parsed = "$(bashio::var.true "${mqtt_publish_parsed}" && echo "yes" || echo "no")";
+    publish_cover = "$(bashio::var.true "${mqtt_publish_cover}" && echo "yes" || echo "no")";
+    enable_remote = "$(bashio::var.true "${mqtt_enable_remote}" && echo "yes" || echo "no")";
+EOF
+
+    # Добавляем аутентификацию MQTT если указана
+    if bashio::config.has_value 'mqtt_username'; then
+        mqtt_username=$(bashio::config 'mqtt_username')
+        mqtt_password=$(bashio::config 'mqtt_password')
+        bashio::log.info "Using MQTT authentication"
+        cat >> /etc/shairport-sync.conf << EOF
+    username = "${mqtt_username}";
+    password = "${mqtt_password}";
+EOF
+    fi
+    
+    cat >> /etc/shairport-sync.conf << EOF
+};
+EOF
+else
+    bashio::log.info "MQTT is disabled"
+fi
+
+bashio::log.info "Configuration file created"
+bashio::log.info "Starting Shairport Sync daemon..."
+
+# Запускаем D-Bus если еще не запущен
+if [ ! -f /var/run/dbus/pid ]; then
+    bashio::log.info "Starting D-Bus..."
+    mkdir -p /var/run/dbus
+    dbus-daemon --system --nofork --nopidfile &
+    sleep 2
+fi
+
+# Запускаем Shairport Sync
+exec shairport-sync -c /etc/shairport-sync.conf -v
