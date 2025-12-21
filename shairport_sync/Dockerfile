@@ -26,6 +26,7 @@ RUN apk add --no-cache \
     mosquitto-clients \
     popt-dev \
     pulseaudio-dev \
+    pulseaudio-utils \
     soxr-dev \
     xmltoman
 
@@ -36,6 +37,7 @@ RUN git clone https://github.com/mikebrady/shairport-sync.git && \
     autoreconf -fi && \
     ./configure \
         --with-alsa \
+        --with-pa \
         --with-avahi \
         --with-ssl=openssl \
         --with-soxr \
@@ -48,7 +50,7 @@ RUN git clone https://github.com/mikebrady/shairport-sync.git && \
     cd .. && \
     rm -rf shairport-sync
 
-# Удаление build-зависимостей
+# Удаление build-зависимостей (оставляем runtime библиотеки)
 RUN apk del --no-cache \
     autoconf \
     automake \
@@ -75,6 +77,6 @@ EXPOSE 5000/tcp 6001-6011/udp
 # Labels
 LABEL \
     io.hass.name="Shairport Sync" \
-    io.hass.description="AirPlay audio streaming server" \
+    io.hass.description="AirPlay audio streaming server with PulseAudio support" \
     io.hass.type="addon" \
-    io.hass.version="1.0.1"
+    io.hass.version="1.1.0"
