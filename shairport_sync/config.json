@@ -1,6 +1,6 @@
 {
   "name": "Shairport Sync",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "slug": "shairport_sync",
   "description": "Shairport Sync for Home Assistant with MQTT support",
   "url": "https://github.com/Miki34534/hassio-test",
