@@ -11,10 +11,23 @@ MQTT_PORT=$(bashio::config 'mqtt_port')
 MQTT_TOPIC=$(bashio::config 'mqtt_topic')
 MQTT_USERNAME=$(bashio::config 'mqtt_username')
 MQTT_PASSWORD=$(bashio::config 'mqtt_password')
-MQTT_PUBLISH_PARSED=$(bashio::config 'mqtt_publish_parsed')
-MQTT_PUBLISH_COVER=$(bashio::config 'mqtt_publish_cover')
-MQTT_ENABLE_REMOTE=$(bashio::config 'mqtt_enable_remote')
 ENABLE_IPV6=$(bashio::config 'enable_ipv6')
+
+# Конвертация boolean в yes/no для Shairport Sync
+MQTT_PUBLISH_PARSED="no"
+if bashio::config.true 'mqtt_publish_parsed'; then
+    MQTT_PUBLISH_PARSED="yes"
+fi
+
+MQTT_PUBLISH_COVER="no"
+if bashio::config.true 'mqtt_publish_cover'; then
+    MQTT_PUBLISH_COVER="yes"
+fi
+
+MQTT_ENABLE_REMOTE="no"
+if bashio::config.true 'mqtt_enable_remote'; then
+    MQTT_ENABLE_REMOTE="yes"
+fi
 
 # Avahi настройки
 AVAHI_INTERFACES=$(bashio::config 'avahi_interfaces')
@@ -34,10 +47,13 @@ general = {
     udp_port_range = 10;
     drift_tolerance_in_seconds = 0.002;
     resync_threshold_in_seconds = 0.05;
-    log_verbosity = 1;
     ignore_volume_control = "no";
     volume_range_db = 60;
     playback_mode = "stereo";
+};
+
+diagnostics = {
+    log_verbosity = 1;
 };
 
 alsa = {
@@ -57,7 +73,7 @@ sessioncontrol = {
 EOF
 
 # Настройка MQTT если включен
-if [ "${MQTT_ENABLED}" = "true" ]; then
+if bashio::config.true 'mqtt_enabled'; then
     bashio::log.info "MQTT is enabled"
     
     # Если username/password не заданы, используем без аутентификации
@@ -109,7 +125,7 @@ dbus-daemon --system --fork
 cat > /etc/avahi/avahi-daemon.conf << EOF
 [server]
 use-ipv4=yes
-use-ipv6=${ENABLE_IPV6}
+use-ipv6=no
 ratelimit-interval-usec=1000000
 ratelimit-burst=1000
 
