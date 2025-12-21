@@ -1,6 +1,6 @@
 {
   "name": "Shairport Sync",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "slug": "shairport_sync",
   "description": "Shairport Sync for Home Assistant with MQTT support",
   "url": "https://github.com/Miki34534/hassio-test",
@@ -17,13 +17,17 @@
   "hassio_api": true,
   "homeassistant_api": true,
   "host_network": true,
-  "hassio_role": "default",
+  "hassio_role": "manager",
+  "auth_api": true,
+  "ingress": false,
+  "panel_icon": "mdi:cast-audio",
   "audio": true,
   "map": [
     "config:rw"
   ],
   "options": {
     "log_level": "info",
+    "audio_device": "softvol",
     "avahi_interfaces": "",
     "avahi_hostname": "",
     "avahi_domainname": "local",
@@ -41,6 +45,7 @@
   },
   "schema": {
     "log_level": "match(^(trace|debug|info|notice|warning|error|fatal)$)",
+    "audio_device": "str?",
     "avahi_interfaces": "str?",
     "avahi_hostname": "str?",
     "avahi_domainname": "str?",
