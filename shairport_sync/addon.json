@@ -25,7 +25,8 @@
   "options": {
     "name": "Shairport Sync",
     "password": "",
-    "port": 5000,
+    "port": "5000",
+    "interface": "0.0.0.0",
     "mqtt": false,
     "mqtt_host": "localhost",
     "mqtt_port": 1883,
@@ -35,7 +36,8 @@
   "schema": {
     "name": "str",
     "password": "str?",
-    "port": "port",
+    "port": "str?",
+    "interface": "str?",
     "mqtt": "bool",
     "mqtt_host": "str",
     "mqtt_port": "port",
