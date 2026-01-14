@@ -1,12 +1,36 @@
 #!/usr/bin/with-contenv bashio
 
-# Устанавливаем переменные окружения для ALSA
+# === ALSA ===
 export ALSA_CONFIG_PATH=/tmp/asound.conf
 export ALSA_PLUGIN_DIR=/usr/lib/alsa-lib
 
-# Настройка PulseAudio для подключения к Home Assistant Audio
+# === PulseAudio ===
 export PULSE_SERVER=/run/audio/pulse.sock
 export PULSE_COOKIE=/run/audio/pulse.cookie
 
-# Запуск Shairport Sync в foreground режиме
-exec shairport-sync -c /tmp/shairport-sync.conf -v
+# === Читаем параметры аддона ===
+NAME="$(bashio::config 'name')"
+PORT="$(bashio::config 'port')"
+INTERFACE="$(bashio::config 'interface')"
+
+ARGS="-c /tmp/shairport-sync.conf -v"
+
+# Имя устройства (AirPlay)
+if [ -n "$NAME" ]; then
+  ARGS="$ARGS -n \"$NAME\""
+fi
+
+# Порт (оставляем 5000)
+if [ -n "$PORT" ]; then
+  ARGS="$ARGS -p $PORT"
+fi
+
+# IP интерфейс (КЛЮЧЕВО!)
+if [ -n "$INTERFACE" ]; then
+  ARGS="$ARGS -i $INTERFACE"
+fi
+
+bashio::log.info "Starting Shairport Sync with args: $ARGS"
+
+# === Запуск ===
+exec shairport-sync $ARGS
